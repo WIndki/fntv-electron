@@ -1,8 +1,8 @@
-const fs = require('fs');
-const path = require('node:path');
-const crypto = require('crypto');
-const { app } = require('electron');
-const { USER_DATA_PATH } = require('../../public/constants');
+import * as fs from 'fs';
+import * as path from 'node:path';
+import * as crypto from 'crypto';
+import { app } from 'electron';
+import { USER_DATA_PATH } from '@/public/constants';
 
 const HISTORY_LIMIT = 5;
 const ENCRYPTION_KEY = 'U2XDcFsV6rdTE9wB5ZHvy6BW9hBTKJ1H'; // 32 chars for aes-256
@@ -10,7 +10,7 @@ const IV = Buffer.alloc(16, 0); // Initialization vector
 
 app.setPath('userData', USER_DATA_PATH);
 
-function getConfigPath() {
+function getConfigPath(): string {
     const dir = app.getPath('userData');
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
@@ -19,7 +19,7 @@ function getConfigPath() {
 }
 
 // 加密密码
-function encrypt(text) {
+function encrypt(text: string): string {
     const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), IV);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
@@ -27,15 +27,32 @@ function encrypt(text) {
 }
 
 // 解密密码
-function decrypt(encrypted) {
+function decrypt(encrypted: string): string {
     const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY), IV);
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     return decrypted;
 }
 
+// 配置接口
+interface Config {
+    account?: string;
+    domain?: string;
+    token?: string;
+    useHttps?: boolean;
+    history?: HistoryItem[];
+}
+
+// 历史记录项接口
+interface HistoryItem {
+    domain: string;
+    account: string;
+    password: string;
+    useHttps: boolean;
+}
+
 // 读取配置
-function readConfig() {
+export function readConfig(): Config | null {
     const p = getConfigPath();
     if (fs.existsSync(p)) {
         try {
@@ -48,8 +65,8 @@ function readConfig() {
 }
 
 // 保存配置（账号、域名、token、HTTPS设置）
-function saveConfig({ account, domain, token, useHttps }) {
-    const config = readConfig() || {};
+export function saveConfig({ account, domain, token, useHttps }: { account?: string; domain?: string; token?: string; useHttps?: boolean }): void {
+    const config: Config = readConfig() || {};
     config.account = account;
     config.domain = domain;
     config.token = token;
@@ -58,8 +75,8 @@ function saveConfig({ account, domain, token, useHttps }) {
 }
 
 // 添加历史记录（域名、账号、加密密码、HTTPS设置）
-function addHistory({ domain, account, password, useHttps }) {
-    const config = readConfig() || {};
+export function addHistory({ domain, account, password, useHttps }: { domain: string; account: string; password: string; useHttps?: boolean }): void {
+    const config: Config = readConfig() || {};
     config.history = config.history || [];
     // 移除重复项
     config.history = config.history.filter(
@@ -80,8 +97,8 @@ function addHistory({ domain, account, password, useHttps }) {
 }
 
 // 获取历史记录（解密密码）
-function getHistory() {
-    const config = readConfig() || {};
+export function getHistory(): HistoryItem[] {
+    const config: Config = readConfig() || {};
     if (!config.history) return [];
     return config.history.map(item => ({
         domain: item.domain,
@@ -92,22 +109,22 @@ function getHistory() {
 }
 
 // 清除历史记录
-function clearHistory() {
-    const config = readConfig() || {};
+export function clearHistory(): void {
+    const config: Config = readConfig() || {};
     config.history = [];
     fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
 }
 
 // 删除单个历史记录
-function deleteHistoryItem({ domain, account }) {
-    const config = readConfig() || {};
+export function deleteHistoryItem({ domain, account }: { domain: string; account: string }): boolean {
+    const config: Config = readConfig() || {};
     if (!config.history) return false;
-    
+
     const originalLength = config.history.length;
     config.history = config.history.filter(
         item => !(item.domain === domain && item.account === account)
     );
-    
+
     if (config.history.length < originalLength) {
         fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2));
         return true;
@@ -115,9 +132,9 @@ function deleteHistoryItem({ domain, account }) {
     return false;
 }
 
-module.exports = {
-    saveConfig,
+export default {
     readConfig,
+    saveConfig,
     addHistory,
     getHistory,
     clearHistory,
